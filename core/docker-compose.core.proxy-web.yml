@@ -1,0 +1,36 @@
+name: stack-core-proxy-web
+
+networks:
+  my-network-proxy:
+    name: my-network-proxy
+    external: true
+  my-network-public:
+    name: my-network-public
+    external: true
+
+services:
+  proxy-web:
+    image: docker.io/jc21/nginx-proxy-manager:2.12.6
+    restart: always
+    hostname: "caddy-proxy"
+    networks:
+      - my-network-public
+      - my-network-proxy
+    expose:
+      - 80:80
+      - 81:81
+      - 443:443
+    volumes:
+      - /var/mnt-links/docker/nginx-proxy-manager/data:/data
+      - /var/mnt-links/docker/nginx-proxy-manager/etc/letsencrypt:/etc/letsencrypt
+    labels:
+      virtual.caddyfile: |
+        http://proxy-web.core.localhost {
+          reverse_proxy proxy-web:81 {
+          }
+        }
+      virtual.homefile: |
+        <div>
+          <a class="shadow" href="http://proxy-web.core.localhost">Nginx Proxy Manager</a>
+          <small>http://proxy-web.core.localhost</small>
+        </div>

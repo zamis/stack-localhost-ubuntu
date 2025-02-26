@@ -1,0 +1,35 @@
+name: stack-core-home
+
+networks:
+  my-network-proxy:
+    name: my-network-proxy
+    external: true
+
+services:
+  whoami:
+    image: traefik/whoami
+    restart: always
+    networks:
+      - my-network-proxy
+    expose:
+      - 80
+    labels:
+      virtual.caddyfile: |
+        http://home.core.localhost {
+          reverse_proxy site-home:80 {
+          }
+        }
+        http://whoami.core.localhost {
+          reverse_proxy whoami:80 {
+          }
+        }
+      virtual.homefile: |
+        <div>
+          <a class="shadow" href="http://home.core.localhost">Home</a>
+          <small>http://home.core.localhost</small>
+        </div>
+        <div>
+          <a class="shadow" href="http://whoami.core.localhost">whoami</a>
+          <small>http://whoami.core.localhost</small>
+        </div>
+
