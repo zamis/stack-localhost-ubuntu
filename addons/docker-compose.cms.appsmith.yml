@@ -1,0 +1,32 @@
+name: stack-media-appsmith
+
+networks:
+  my-network-public:
+    name: my-network-public
+    external: true
+
+services:  
+  appsmith:
+    image: appsmith/appsmith-ee:v1.81
+    restart: unless-stopped
+    networks:
+      - my-network-public
+    expose:
+      - 80
+      - 443
+    volumes:
+      - /var/mnt-links/docker/appsmith/appsmith-stacks:/appsmith-stacks
+    labels:
+      virtual.caddyfile: |
+        https://appsmith.${USER_HOSTNAME:?error} {
+            redir http://appsmith.${USER_HOSTNAME:?error}
+        }
+        http://appsmith.${USER_HOSTNAME:?error} {
+            reverse_proxy appsmith:443 {
+            }
+        }
+      virtual.homefile: |
+        <div class="hire" style="margin: 5px;">
+          <a class="shadow" href="http://appsmith.${USER_HOSTNAME:?error}">appsmith</a>
+          <small>http://appsmith.${USER_HOSTNAME:?error}</small>
+        </div>

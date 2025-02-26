@@ -1,0 +1,104 @@
+name: stack-llm
+
+networks:
+  my-network-public:
+    name: my-network-public
+    external: true
+
+configs:
+  qdrant_config:
+    content: |
+      log_level: INFO
+
+services:
+  # ollama:
+  #   image: ollama/ollama:0.11.5
+  #   restart: always
+  #   networks:
+  #     - my-network-public
+  #   expose:
+  #     - 11434
+  #   ports:
+  #     - 11434:11434
+  #   volumes:
+  #     - /var/mnt-links/docker/ollama/root/.ollama:/root/.ollama
+
+  qdrant:
+    image: qdrant/qdrant:v1.15.1
+    restart: always
+    networks:
+      - my-network-public
+    expose:
+      - 6333
+      - 6334
+      - 6335
+    configs:
+      - source: qdrant_config
+        target: /qdrant/config/production.yaml
+    volumes:
+      - /var/mnt-links/docker/qdrant/qdrant/storage:/qdrant/storage
+    labels:
+      virtual.caddyfile: |
+        https://qdrant.llm.${USER_HOSTNAME:?error} {
+            redir http://qdrant.llm.${USER_HOSTNAME:?error}
+        }
+        http://qdrant.llm.${USER_HOSTNAME:?error} {
+            reverse_proxy qdrant:6333 {
+            }
+        }
+      virtual.homefile: |
+        <div class="hire" style="margin: 5px;">
+          <a class="shadow" href="http://qdrant.llm.${USER_HOSTNAME:?error}/dashboard">qdrant.llm</a>
+          <small>http://qdrant.llm.${USER_HOSTNAME:?error}/dashboard</small>
+        </div>
+
+  openwebui:
+    image: ghcr.io/open-webui/open-webui:0.6.18
+    restart: always    
+    networks:
+      - my-network-public
+    expose:
+      - 8080
+    volumes:
+      - /var/mnt-links/docker/open-webui/app/backend/data:/app/backend/data
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+    labels:
+      virtual.caddyfile: |
+        https://openwebui.${USER_HOSTNAME:?error} {
+            redir http://openwebui.${USER_HOSTNAME:?error}
+        }
+        http://openwebui.${USER_HOSTNAME:?error} {
+            reverse_proxy openwebui:8080 {
+            }
+        }
+      virtual.homefile: |
+        <div class="hire" style="margin: 5px;">
+          <a class="shadow" href="http://openwebui.${USER_HOSTNAME:?error}">Open Web UI</a>
+          <small>http://openwebui.${USER_HOSTNAME:?error}</small>
+        </div>
+
+  localai:
+    image: localai/localai:v3.4.0
+    restart: always    
+    networks:
+      - my-network-public
+    expose:
+      - 8080
+    volumes:
+      - /var/mnt-links/docker/localai/models:/models
+      - /var/mnt-links/docker/localai/backends:/backends
+    labels:
+      virtual.caddyfile: |
+        https://localai.llm.${USER_HOSTNAME:?error} {
+            redir http://localai.llm.${USER_HOSTNAME:?error}
+        }
+        http://localai.llm.${USER_HOSTNAME:?error} {
+            reverse_proxy localai:8080 {
+            }
+        }
+      virtual.homefile: |
+        <div class="hire" style="margin: 5px;">
+          <a class="shadow" href="http://localai.llm.${USER_HOSTNAME:?error}">LocalAI</a>
+          <small>http://localai.llm.${USER_HOSTNAME:?error}</small>
+        </div>
