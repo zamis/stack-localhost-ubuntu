@@ -1,0 +1,47 @@
+name: stack-media-jellyfin
+
+networks:
+  my-network-public:
+    name: my-network-public
+    external: true
+
+volumes:
+  tmp1:
+
+services:
+  service-jellyfin:
+    image: jellyfin/jellyfin:2025042105
+    restart: always
+    networks:
+      - my-network-public
+    expose:
+      - 8920
+      - 8096
+      - 1900
+      - 7359
+    ports:
+      - 1900:1900/udp
+      - 1900:1900
+      - 7359:7359/udp
+      - 7359:7359
+    environment:
+      JELLYFIN_PublishedServerUrl: http://jellyfin.media.${USER_HOSTNAME:?error}
+    volumes:
+      - /mnt-links/docker/jellyfin/config:/config
+      - /mnt-links/docker/jellyfin/cache:/cache
+      - tmp1:/tmp/jellyfin
+      - /mnt-links/media:/media:ro
+    labels:
+      virtual.caddyfile: |
+        https://jellyfin.media.${USER_HOSTNAME:?error} {
+            redir http://jellyfin.media.${USER_HOSTNAME:?error}
+        }
+        http://jellyfin.media.${USER_HOSTNAME:?error} {
+            reverse_proxy service-jellyfin:8096 {
+            }
+        }
+      virtual.homefile: |
+        <div class="hire" style="margin: 5px;">
+          <a class="shadow" href="http://jellyfin.media.${USER_HOSTNAME:?error}">jellyfin</a>
+          <small>http://jellyfin.media.${USER_HOSTNAME:?error}</small>
+        </div>

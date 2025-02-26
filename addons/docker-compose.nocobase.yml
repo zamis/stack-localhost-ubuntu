@@ -1,0 +1,54 @@
+name: stack-nocobase
+
+networks:
+  my-network-public:
+    name: my-network-public
+    external: true
+
+services:
+  nocobase:
+    image: nocobase/nocobase:1.7.0
+    restart: no
+    networks:
+      - my-network-public
+    environment:
+      # The application's secret key, used to generate user tokens, etc.
+      # If APP_KEY is changed, old tokens will also become invalid.
+      # It can be any random string, and make sure it is not exposed.
+      - APP_KEY=your-secret-key
+      # Database type, supports postgres, mysql, mariadb
+      - DB_DIALECT=postgres
+      # Database host, can be replaced with the IP of an existing database server
+      - DB_HOST=database-postgres
+      # Database port
+      - DB_PORT=5432
+      # Database name
+      - DB_DATABASE=nocobase
+      # Database user
+      - DB_USER=nocobase
+      # Database password
+      - DB_PASSWORD=nocobase
+      # Timezone
+      - TZ=UTC
+      # Service platform username and password,
+      # used for automatically downloading and updating plugins.
+      - NOCOBASE_PKG_USERNAME=
+      - NOCOBASE_PKG_PASSWORD=
+    volumes:
+      - /mnt-links/docker/nocobase/app/nocobase/storage:/app/nocobase/storage
+    expose:
+      - 80
+    labels:
+      virtual.caddyfile: |
+        https://nocobase.${USER_HOSTNAME:?error} {
+            redir http://nocobase.${USER_HOSTNAME:?error}
+        }
+        http://nocobase.${USER_HOSTNAME:?error} {
+            reverse_proxy nocobase:80 {
+            }
+        }
+      virtual.homefile: |
+        <div class="hire" style="margin: 5px;">
+          <a class="shadow" href="http://nocobase.${USER_HOSTNAME:?error}">nocobase</a>
+          <small>http://nocobase.${USER_HOSTNAME:?error}</small>
+        </div>

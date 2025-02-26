@@ -1,0 +1,178 @@
+name: stack-localhost-ubuntu-dev
+
+networks:
+  my-network-public:
+    name: my-network-public
+    external: true
+
+volumes:
+  tmp1:
+
+services:
+  ubuntu-dev:
+    build:
+      dockerfile_inline: |
+        FROM localhost/ubuntu
+        USER root
+        RUN cat <<EOF >/dockerstartup/custom_startup.sh
+        #!/usr/bin/env bash
+        set -ex
+        /usr/bin/desktop_ready && xterm /dockerstartup/utils/docker-port-forward.sh
+        EOF
+        RUN cat <<EOF >/dockerstartup/utils/install.sh
+        #!/usr/bin/env bash
+        set -ex
+        usermod -a -G video kasm-user
+        EOF
+        RUN chmod +x /dockerstartup/custom_startup.sh
+        RUN chmod +x /dockerstartup/utils/install.sh
+        USER 1000
+        RUN sudo bash /dockerstartup/utils/install.sh || exit 1;
+    restart: always
+    shm_size: 2gb
+    security_opt:
+      - apparmor=unconfined
+      - seccomp=unconfined
+    cap_add:
+      - ALL
+    networks:
+      - my-network-public
+    expose:
+      - 6901
+    environment:
+      KASM_USER: "kasm-user"
+      VNC_USER: kasm_user
+      VNC_PW: password
+      USER_DOCKER_HOST: dind-dev
+      # DOCKER_HOST: tcp://docker:2376
+      # DOCKER_HOST: unix://var/run/docker.sock
+      # DOCKER_SOCK: unix://var/run/docker.sock
+      DOCKER_TLS_VERIFY: 1
+      DOCKER_TLS_CERTDIR: /certs
+      DOCKER_CERT_PATH: /certs/client
+      ROOTLESSKIT_STATE_DIR: /home/kasm-user/.docker/tmp
+      XDG_RUNTIME_DIR: /home/kasm-user/.docker/run
+      UB_IIT_SETTINGS_PATH: /home/kasm-user/tmp
+      DOTNET_ROOT: /mnt/user-data/!apps/dotnet
+      KASM_SVC_WEBCAM: 0
+      KASM_SVC_PRINTER: 0
+      KASM_SVC_AUDIO: 0
+      KASM_SVC_AUDIO_INPUT: 0
+      KASM_SVC_UPLOADS: 0
+      KASM_SVC_GAMEPAD: 0
+      PATH_ADD: /mnt/user-data/!apps/ub:/mnt/user-data/!apps/dotnet:/home/kasm-user/.dotnet/tools
+    devices:
+      - /dev/fuse:/dev/fuse
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /mnt-links/docker/dind-dev/certs:/certs:ro
+      - /mnt-links/docker/dind-dev/var/run:/var/dind-dev-run
+      - /mnt-links/docker/ubuntu/home/kasm-user:/home/kasm-user:rw
+      - /mnt-links/docker/ubuntu/mnt/user-data:/mnt/user-data:rw
+      - /mnt-links/docker/share:/mnt/user-share:rw
+    labels:
+      virtual.caddyfile: |
+        https://ubuntu-dev.${USER_HOSTNAME:?error} {
+            redir http://ubuntu-dev.${USER_HOSTNAME:?error}
+        }
+        http://ubuntu-dev.${USER_HOSTNAME:?error} {
+            reverse_proxy ubuntu-dev:6901 {
+              transport http {
+                tls
+                tls_insecure_skip_verify
+              }
+            }
+        }
+      virtual.homefile: |
+        <div class="hire" style="margin: 5px;">
+          <a class="shadow" href="http://ubuntu-dev.${USER_HOSTNAME:?error}">ubuntu-dev</a>
+          <small>http://ubuntu-dev.${USER_HOSTNAME:?error}</small>
+        </div>
+
+  ubuntu-focal:
+    build:
+      dockerfile_inline: |
+        FROM kasmweb/core-ubuntu-focal:1.16.0
+        USER root
+        RUN add-apt-repository universe -y
+        RUN apt-get update
+        RUN apt-get install -y sudo apt-utils dbus-user-session uidmap coreutils e2fsprogs cryptsetup kpartx nmap socat dialog
+        RUN apt-get install -y git htop mc thunar-archive-plugin iputils-ping openssl
+        RUN apt install -y usbutils pcsc-tools libengine-pkcs11-openssl opensc opensc-pkcs11 gnutls-bin
+        RUN mkdir -p /etc/pkcs11/modules
+        RUN echo "module: /usr/lib/libeTPkcs11.so" >> /etc/pkcs11/modules/eToken.module
+
+        RUN echo 'kasm-user ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers.d/user
+        RUN echo -n 'kasm-user:password' | chpasswd
+        RUN passwd -d kasm-user
+
+        RUN echo 'kernel.unprivileged_userns_clone=1' >> /etc/sysctl.d/userns.conf
+        RUN echo 'net.ipv4.ip_unprivileged_port_start=0' >> /etc/sysctl.d/userns.conf
+        RUN echo 'fs.inotify.max_user_watches=524288' >> /etc/sysctl.d/userns.conf
+
+        RUN cat <<EOF >/home/kasm-default-profile/Desktop/install.sh
+        #!/usr/bin/env bash
+        set -ex
+        sudo apt install ./safenetauthenticationclient_10.7.77_amd64.deb
+        sudo pcscd -f
+        EOF
+
+        USER 1000
+    restart: no
+    privileged: true
+    shm_size: 1gb
+    security_opt:
+      - apparmor=unconfined
+      - seccomp=unconfined
+    cap_add:
+      - ALL
+    networks:
+      - my-network-public
+    expose:
+      - 6901
+    environment:
+      KASM_USER: "kasm-user"
+      VNC_USER: kasm_user
+      VNC_PW: password
+      USER_DOCKER_HOST: dind-dev
+      DOCKER_TLS_VERIFY: 1
+      DOCKER_TLS_CERTDIR: /certs
+      DOCKER_CERT_PATH: /certs/client
+      ROOTLESSKIT_STATE_DIR: /home/kasm-user/.docker/tmp
+      XDG_RUNTIME_DIR: /home/kasm-user/.docker/run
+      UB_IIT_SETTINGS_PATH: /home/kasm-user/tmp
+      DOTNET_ROOT: /mnt/user-data/!apps/dotnet
+      KASM_SVC_WEBCAM: 0
+      KASM_SVC_PRINTER: 0
+      KASM_SVC_AUDIO: 0
+      KASM_SVC_AUDIO_INPUT: 0
+      KASM_SVC_UPLOADS: 0
+      KASM_SVC_GAMEPAD: 0
+      PATH_ADD: /mnt/user-data/!apps/ub:/mnt/user-data/!apps/dotnet:/home/kasm-user/.dotnet/tools
+      UDEV: on
+    devices:
+      - /dev/fuse:/dev/fuse
+      - /dev/usb:/dev/usb
+      - /dev/bus/usb:/dev/bus/usb
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /mnt-links/docker/ubuntu-focal/home/kasm-user:/home/kasm-user:rw
+      - /mnt-links/docker/share:/mnt/user-share:rw
+    labels:
+      virtual.caddyfile: |
+        https://ubuntu-focal.${USER_HOSTNAME:?error} {
+            redir http://ubuntu-focal.${USER_HOSTNAME:?error}
+        }
+        http://ubuntu-focal.${USER_HOSTNAME:?error} {
+            reverse_proxy ubuntu-focal:6901 {
+              transport http {
+                tls
+                tls_insecure_skip_verify
+              }
+            }
+        }
+      virtual.homefile: |
+        <div class="hire" style="margin: 5px;">
+          <a class="shadow" href="http://ubuntu-focal.${USER_HOSTNAME:?error}">ubuntu-focal</a>
+          <small>http://ubuntu-focal.${USER_HOSTNAME:?error}</small>
+        </div>
