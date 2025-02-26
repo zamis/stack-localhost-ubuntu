@@ -1,0 +1,51 @@
+{{ $hosts := groupByLabel $ "virtual.host" }}
+{{- $config := dict }}
+{{- $_ := set $config "CURRENT_NETWORK" $.Env.CURRENT_NETWORK }}
+
+{
+  auto_https disable_redirects
+}
+
+{{ if not $hosts }}
+
+127.0.0.1:2015 {
+  log {
+      output stdout
+  }
+}
+
+{{ else }}
+
+  {{ range $h, $containers := $hosts }}
+    {{ $c := first $containers }}
+    {{ $allhosts := trim (index $c.Labels "virtual.host") }}
+    {{ range $t, $host := split $allhosts " " }}
+      {{ $redir := trim (index $c.Labels "virtual.redir") }}
+      {{ $hostDirectives := trim (index $c.Labels "virtual.host.directives") }}
+      {{ $proxyDirectives := trim (index $c.Labels "virtual.proxy.directives") }}
+      {{ $port := trim (index $c.Labels "virtual.upstream.port") }}
+      {{ $protocol := trim (index $c.Labels "virtual.upstream.protocol") }}
+
+      {{ if eq $protocol "http://" }}
+      https://{{ $host }} {
+        redir {{ $protocol }}{{ $host }}
+      }
+      {{ end }}
+
+      http://{{ $host }} {
+      {{ $hostDirectives }}
+      {{ range $i, $container := $containers }}
+        {{ range $j, $net := $container.Networks }}
+          {{ if eq $net.Name $config.CURRENT_NETWORK }}
+            {{$upstream := print $protocol $net.IP ":" $port }}
+            reverse_proxy {{ $upstream }} {
+              # {{ $net.Name }}
+              {{ $proxyDirectives }}
+            }
+          {{ end }}
+        {{ end }}
+      {{ end }}
+      }
+    {{ end }}
+  {{ end }}
+{{ end }}

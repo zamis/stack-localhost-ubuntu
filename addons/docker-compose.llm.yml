@@ -1,0 +1,63 @@
+name: stack-llm
+
+networks:
+  my-network-public:
+    name: my-network-public
+    external: true
+
+configs:
+  qdrant_config:
+    content: |
+      log_level: INFO
+
+services:
+  ollama:
+    image: ollama/ollama:0.9.0
+    restart: always
+    networks:
+      - my-network-public
+    expose:
+      - 11434
+    ports:
+      - 11434:11434
+    volumes:
+      - /mnt-links/docker/ollama/root/.ollama:/root/.ollama
+
+  qdrant:
+    image: qdrant/qdrant:v1.14.1
+    restart: always
+    networks:
+      - my-network-public
+    expose:
+      - 6333
+      - 6334
+      - 6335
+    configs:
+      - source: qdrant_config
+        target: /qdrant/config/production.yaml
+    volumes:
+      - /mnt-links/docker/qdrant/qdrant/storage:/qdrant/storage
+    labels:
+      virtual.title: qdrant
+      virtual.url: http://qdrant.dev.${USER_HOSTNAME:?error}/dashboard
+      virtual.host: qdrant.dev.${USER_HOSTNAME:?error}
+      virtual.upstream.port: 6333
+      virtual.upstream.protocol: http://
+
+  openwebui:
+    image: ghcr.io/open-webui/open-webui:0.6.13
+    restart: always    
+    networks:
+      - my-network-public
+    expose:
+      - 8080
+    volumes:
+      - /mnt-links/docker/open-webui/app/backend/data:/app/backend/data
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+    labels:
+      virtual.title: Open Web UI
+      virtual.url: http://openwebui.${USER_HOSTNAME:?error}
+      virtual.host: openwebui.${USER_HOSTNAME:?error}
+      virtual.upstream.port: 8080
+      virtual.upstream.protocol: http://
