@@ -1,0 +1,57 @@
+name: stack-media-files
+
+networks:
+  my-network-public:
+    name: my-network-public
+    external: true
+
+volumes:
+  tmp1:
+
+services:
+  filebrowser:
+    build:
+      dockerfile_inline: |
+        FROM filebrowser/filebrowser:v2.32.0
+        USER root
+        ENV HOME=/srv
+        ENV CONFIG=/config
+        RUN mkdir -p $$HOME && mkdir -p $$CONFIG
+        # RUN chown -R 1000:0 $$HOME && chown -R 1000:0 $$CONFIG
+        RUN cat <<EOF > /.filebrowser.json
+        {
+          "port": 80,
+          "baseURL": "",
+          "address": "",
+          "log": "stdout",
+          "database": "/config/database.db",
+          "root": "/srv"
+        }
+        EOF
+    command: --noauth --port=80 --root=/srv --database=/config/database.db
+    restart: unless-stopped
+    networks:
+      - my-network-public
+    expose:
+      - 80
+    environment:
+      HOME: "/srv"
+    volumes:
+      - tmp1:/srv
+      - /var/mnt-links/media:/srv/media:rw
+      - /var/mnt-links/docker/share:/srv/share:rw
+      - /var/mnt-links/docker:/srv/docker:ro
+    labels:
+      virtual.caddyfile: |
+        https://files.media.${USER_HOSTNAME:?error} {
+            redir http://files.media.${USER_HOSTNAME:?error}
+        }
+        http://files.media.${USER_HOSTNAME:?error} {
+            reverse_proxy filebrowser:80 {
+            }
+        }
+      virtual.homefile: |
+        <div class="hire" style="margin: 5px;">
+          <a class="shadow" href="http://files.media.${USER_HOSTNAME:?error}">Files</a>
+          <small>http://files.media.${USER_HOSTNAME:?error}</small>
+        </div>
