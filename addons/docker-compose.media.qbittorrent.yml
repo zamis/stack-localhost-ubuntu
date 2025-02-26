@@ -1,0 +1,50 @@
+name: stack-media-qbittorrent
+
+networks:
+  my-network-public:
+    name: my-network-public
+    external: true
+
+services:
+  qbittorrent-nox:
+    image: qbittorrentofficial/qbittorrent-nox:5.1.0-1
+    restart: unless-stopped
+    networks:
+      - my-network-public
+    expose:
+      - 8081 # for WebUI
+      - 6881 # TORRENTING_PORT
+    ports:
+      - 6881:6881/tcp
+      - 6881:6881/udp
+    hostname: qbittorrent.media.${USER_HOSTNAME:?error}
+    environment:
+      - QBT_LEGAL_NOTICE=confirm
+      - QBT_WEBUI_PORT=8081
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+      - LANG=en_US.utf8
+      - WEBUI_PORT=8081
+      - TORRENTING_PORT=6881
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      - /var/mnt-links/docker/qbittorrent/config:/config
+      - /var/mnt-links/media/downloads:/downloads
+    labels:
+      virtual.caddyfile: |
+        https://qbittorrent.media.${USER_HOSTNAME:?error} {
+            redir http://qbittorrent.media.${USER_HOSTNAME:?error}
+        }
+        http://qbittorrent.media.${USER_HOSTNAME:?error} {
+            reverse_proxy qbittorrent-nox:8081 {
+                header_up -Origin
+                header_up -Referer
+            }
+        }
+      virtual.homefile: |
+        <div class="hire" style="margin: 5px;">
+          <a class="shadow" href="http://qbittorrent.media.${USER_HOSTNAME:?error}">qbittorrent</a>
+          <small>http://qbittorrent.media.${USER_HOSTNAME:?error}</small>
+        </div>

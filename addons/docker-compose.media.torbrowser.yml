@@ -1,0 +1,40 @@
+name: stack-media-torbrowser
+
+networks:
+  my-network-public:
+    name: my-network-public
+    external: true
+
+services:
+  torbrowser:
+    image: domistyle/tor-browser:14.5.5
+    restart: no
+    shm_size: 2gb
+    hostname: torbrowser.media.${USER_HOSTNAME:?error}
+    networks:
+      - my-network-public
+    expose:
+      - 5800
+    environment:
+      VNC_PASSWORD: 
+      WEB_AUDIO: 1
+      WEB_FILE_MANAGER: 1
+      DARK_MODE: 1
+      # DISPLAY_WIDTH: 1920
+      # DISPLAY_HEIGHT: 1080
+      KEEP_APP_RUNNING: 1
+      TZ: Europe/Vienna
+    labels:
+      virtual.caddyfile: |
+        https://torbrowser.media.${USER_HOSTNAME:?error} {
+            redir http://torbrowser.media.${USER_HOSTNAME:?error}
+        }
+        http://torbrowser.media.${USER_HOSTNAME:?error} {
+            reverse_proxy torbrowser:5800 {
+            }
+        }
+      virtual.homefile: |
+        <div class="hire" style="margin: 5px;">
+          <a class="shadow" href="http://torbrowser.media.${USER_HOSTNAME:?error}?resize=remote">tor browser</a>
+          <small>http://torbrowser.media.${USER_HOSTNAME:?error}</small>
+        </div>
