@@ -1,0 +1,120 @@
+name: stack-media-files
+
+networks:
+  my-network-public:
+    name: my-network-public
+    external: true
+
+volumes:
+  tmp1:
+  tmp2:
+
+services:
+  filebrowser:
+    build:
+      dockerfile_inline: |
+        FROM filebrowser/filebrowser:v2.32.0
+        USER root
+        ENV HOME=/srv
+        ENV CONFIG=/config
+        RUN mkdir -p $$HOME && mkdir -p $$CONFIG
+        # RUN chown -R 1000:0 $$HOME && chown -R 1000:0 $$CONFIG
+        RUN cat <<EOF > /.filebrowser.json
+        {
+          "port": 80,
+          "baseURL": "",
+          "address": "",
+          "log": "stdout",
+          "database": "/config/database.db",
+          "root": "/srv"
+        }
+        EOF
+    command: --noauth --port=80 --root=/srv --database=/config/database.db
+    restart: unless-stopped
+    networks:
+      - my-network-public
+    expose:
+      - 80
+    environment:
+      HOME: "/srv"
+    volumes:
+      - tmp1:/srv
+      - /mnt-links/media:/srv/media:rw
+      - /mnt-links/docker/share:/srv/share:rw
+      - /mnt-links/docker:/srv/docker:ro
+    labels:
+      virtual.title: Files
+      virtual.url: http://files.media.${USER_HOSTNAME:?error}
+      virtual.host: files.media.${USER_HOSTNAME:?error}
+      virtual.upstream.port: 80
+      virtual.upstream.protocol: http://
+
+  service-smb:
+    image: ghcr.io/servercontainers/samba
+    restart: always
+    cap_add:
+      - NET_ADMIN
+      - NET_BROADCAST
+    # network_mode: host
+    networks:
+      - my-network-public
+    expose:
+      - 137
+      - 139
+      - 445
+      # - 5353
+      # - 53791
+    ports:
+      - 137:137/udp
+      - 139:139
+      - 445:445
+      # - 5353:5353
+      # - 5353:5353/udp
+      # - 53791:53791
+    environment:
+      MODEL: TimeCapsule
+      AVAHI_NAME: ${USER_HOSTNAME:?error}
+      SAMBA_CONF_LOG_LEVEL: 3
+      SAMBA_VOLUME_CONFIG_guestmultilineexample: |
+        [Share]
+        path = /shares/Share
+        guest ok = yes
+        browseable = yes
+        read only = yes
+        
+        [Guest]
+        path = /shares/guest
+        guest ok = yes
+        browseable = yes
+        read only = no
+        writeable = yes
+        inherit owner = yes
+        create mask = 777
+        directory mask = 777
+        force create mode = 777
+        force directory mode = 777
+        force user = root
+        force group = root
+    volumes:
+      - /etc/avahi/services/:/external/avahi
+      - tmp2:/shares
+      - /mnt-links/media/video:/shares/Share/video:ro
+      - /mnt-links/media/music:/shares/Share/music:ro
+      - /mnt-links/media/downloads:/shares/Share/downloads:ro
+      - /mnt-links/media/guest:/shares/guest:rw
+
+  service-ssh:
+    image: niruix/sshwifty:latest
+    restart: always
+    networks:
+      - my-network-public
+    expose:
+      - 8182
+    environment:
+      MODEL: 'TimeCapsule'
+    labels:
+      virtual.title: SSH
+      virtual.url: http://ssh.media.${USER_HOSTNAME:?error}
+      virtual.host: ssh.media.${USER_HOSTNAME:?error}
+      virtual.upstream.port: 8182
+      virtual.upstream.protocol: http://

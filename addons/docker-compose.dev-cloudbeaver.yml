@@ -1,0 +1,36 @@
+name: stack-dev-cloudbeaver
+
+networks:
+  my-network-public:
+    name: my-network-public
+    external: true
+
+services:
+  cloudbeaver:
+    image: dbeaver/cloudbeaver
+    restart: unless-stopped
+    networks:
+      - my-network-public
+    expose:
+      - 8978
+    volumes:
+      - /mnt-links/docker/cloudbeaver/opt/cloudbeaver/workspace:/opt/cloudbeaver/workspace
+    labels:
+      virtual.title: cloudbeaver
+      virtual.url: http://cloudbeaver.dev.${USER_HOSTNAME:?error}
+      virtual.host: cloudbeaver.dev.${USER_HOSTNAME:?error}
+      virtual.upstream.port: 8978
+      virtual.upstream.protocol: http://
+
+  database-mysql:
+    image: mysql:9.0.1
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: password102
+      MYSQL_DATABASE: mysql
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password104
+    expose:
+      - 3306
+    volumes:
+      - /mnt-links/docker/database-mysql/var/lib/mysql:/var/lib/mysql
