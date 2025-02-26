@@ -1,0 +1,56 @@
+name: stack-core-home
+
+networks:
+  my-network-public:
+    name: my-network-public
+    external: true
+
+
+services:
+  whoami:
+    image: traefik/whoami
+    restart: always
+    networks:
+      - my-network-public
+    expose:
+      - 80
+    labels:
+      virtual.caddyfile: |
+        :80 {
+          respond "Request matched no routes." 404
+        }
+        https://${USER_HOSTNAME:?error} {
+          redir http://${USER_HOSTNAME:?error}
+        }
+        http://${USER_HOSTNAME:?error} {
+          reverse_proxy site-home:80 {
+          }
+        }
+        https://port.${USER_HOSTNAME:?error} {
+            redir http://port.${USER_HOSTNAME:?error}
+        }
+        http://port.${USER_HOSTNAME:?error} {
+            reverse_proxy port:9000 {
+            }
+        }
+        https://whoami.${USER_HOSTNAME:?error} {
+          redir http://whoami.${USER_HOSTNAME:?error}
+        }
+        http://whoami.${USER_HOSTNAME:?error} {
+          reverse_proxy whoami:80 {
+          }
+        }
+      virtual.homefile: |
+        <div class="hire" style="margin: 5px;">
+          <a class="shadow" href="http://${USER_HOSTNAME:?error}">Home</a>
+          <small>http://${USER_HOSTNAME:?error}</small>
+        </div>
+        <div class="hire" style="margin: 5px;">
+          <a class="shadow" href="http://port.${USER_HOSTNAME:?error}">Portainer</a>
+          <small>http://port.${USER_HOSTNAME:?error}</small>
+        </div>
+        <div class="hire" style="margin: 5px;">
+          <a class="shadow" href="http://whoami.${USER_HOSTNAME:?error}">whoami</a>
+          <small>http://whoami.${USER_HOSTNAME:?error}</small>
+        </div>
+
