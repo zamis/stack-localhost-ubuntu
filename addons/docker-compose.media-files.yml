@@ -1,0 +1,76 @@
+name: stack-media-files
+
+networks:
+  my-network-public:
+    name: my-network-public
+    external: true
+
+volumes:
+  tmp1:
+  tmp2:
+
+services:
+  filebrowser:
+    build:
+      dockerfile_inline: |
+        FROM filebrowser/filebrowser:v2.32.0
+        USER root
+        ENV HOME=/srv
+        ENV CONFIG=/config
+        RUN mkdir -p $$HOME && mkdir -p $$CONFIG
+        # RUN chown -R 1000:0 $$HOME && chown -R 1000:0 $$CONFIG
+        RUN cat <<EOF > /.filebrowser.json
+        {
+          "port": 80,
+          "baseURL": "",
+          "address": "",
+          "log": "stdout",
+          "database": "/config/database.db",
+          "root": "/srv"
+        }
+        EOF
+    command: --noauth --port=80 --root=/srv --database=/config/database.db
+    restart: unless-stopped
+    networks:
+      - my-network-public
+    expose:
+      - 80
+    environment:
+      HOME: "/srv"
+    volumes:
+      - tmp1:/srv
+      - /mnt-links/media:/srv/media:rw
+      - /mnt-links/docker/share:/srv/share:rw
+      - /mnt-links/docker:/srv/docker:ro
+    labels:
+      virtual.title: Files
+      virtual.url: http://files.media.${USER_HOSTNAME:?error}
+      virtual.caddyfile: |
+        https://files.media.${USER_HOSTNAME:?error} {
+            redir http://files.media.${USER_HOSTNAME:?error}
+        }
+        http://files.media.${USER_HOSTNAME:?error} {
+            reverse_proxy filebrowser:80 {
+            }
+        }
+
+  service-ssh:
+    image: niruix/sshwifty:latest
+    restart: always
+    networks:
+      - my-network-public
+    expose:
+      - 8182
+    environment:
+      MODEL: 'TimeCapsule'
+    labels:
+      virtual.title: SSH
+      virtual.url: http://ssh.media.${USER_HOSTNAME:?error}
+      virtual.caddyfile: |
+        https://ssh.media.${USER_HOSTNAME:?error} {
+            redir http://ssh.media.${USER_HOSTNAME:?error}
+        }
+        http://ssh.media.${USER_HOSTNAME:?error} {
+            reverse_proxy service-ssh:8182 {
+            }
+        }
