@@ -1,0 +1,23 @@
+name: stack-nocodb
+
+networks:
+  my-network-public:
+    name: my-network-public
+    external: true
+
+services:  
+  nocodb:
+    image: nocodb/nocodb:0.263.6
+    restart: unless-stopped
+    networks:
+      - my-network-public
+    expose:
+      - 8080
+    volumes:
+      - /mnt-links/docker/nocodb/usr/app/data:/usr/app/data
+    labels:
+      virtual.title: nocodb
+      virtual.url: http://nocodb.${USER_HOSTNAME:?error}
+      virtual.host: nocodb.${USER_HOSTNAME:?error}
+      virtual.upstream.port: 8080
+      virtual.upstream.protocol: http://
