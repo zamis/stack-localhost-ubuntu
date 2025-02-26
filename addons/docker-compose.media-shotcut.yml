@@ -1,0 +1,36 @@
+name: stack-media-shotcut
+
+networks:
+  my-network-public:
+    name: my-network-public
+    external: true
+
+services:
+  shotcut:
+    image: lscr.io/linuxserver/shotcut:latest
+    # security_opt:
+    #   - seccomp:unconfined #optional
+    environment:
+      - TZ=Etc/UTC
+      - PUID=1000
+      - PGID=1000
+    expose:
+      - 3000
+      - 3001
+    ports:
+      - 3000:3000
+      - 3001:3001
+    restart: unless-stopped
+    volumes:
+      - /mnt-links/docker/shotcut/config:/config
+      - /mnt-links/media/shotcut:/mnt/shotcut
+    labels:
+      virtual.title: Shotcut
+      virtual.url: http://shotcut.media.${USER_HOSTNAME:?error}
+      virtual.host: shotcut.media.${USER_HOSTNAME:?error}
+      virtual.upstream.port: 3000
+      virtual.upstream.protocol: https://
+      virtual.proxy.directives: |
+        transport http {
+          tls_insecure_skip_verify
+        }

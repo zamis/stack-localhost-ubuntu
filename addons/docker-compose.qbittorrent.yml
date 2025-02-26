@@ -1,0 +1,40 @@
+name: stack-qbittorrent
+
+networks:
+  my-network-public:
+    name: my-network-public
+    external: true
+
+services:
+  qbittorrent-nox:
+    image: lscr.io/linuxserver/qbittorrent:5.0.4
+    restart: unless-stopped
+    networks:
+      - my-network-public
+    expose:
+      - 8081 # for WebUI
+    ports:
+      - 6881:6881/tcp
+      - 6881:6881/udp
+    hostname: qbittorrent.${USER_HOSTNAME:?error}
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+      - LANG=en_US.utf8
+      - WEBUI_PORT=8081
+      - TORRENTING_PORT=6881
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      - /mnt-links/docker/qbittorrent/config:/config
+      - /mnt-links/media/downloads:/downloads
+    labels:
+      virtual.title: qbittorrent
+      virtual.url: http://qbittorrent.${USER_HOSTNAME:?error}
+      virtual.host: qbittorrent.${USER_HOSTNAME:?error}
+      virtual.upstream.port: 8081
+      virtual.upstream.protocol: http://
+      virtual.proxy.directives: |
+        header_up -Origin
+        header_up -Referer
