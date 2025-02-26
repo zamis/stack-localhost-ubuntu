@@ -1,0 +1,75 @@
+name: stack-dev-helpers
+
+networks:
+  my-network-public:
+    name: my-network-public
+    external: true
+
+volumes:
+  backup:
+
+services:
+  cyberchef:
+    image: ghcr.io/gchq/cyberchef:10.19.4
+    restart: unless-stopped
+    networks:
+      - my-network-public
+    expose:
+      - 80
+    labels:
+      virtual.title: cyberchef
+      virtual.url: http://cyberchef.dev.${USER_HOSTNAME:?error}
+      virtual.caddyfile: |
+        https://cyberchef.dev.${USER_HOSTNAME:?error} {
+            redir http://cyberchef.dev.${USER_HOSTNAME:?error}
+        }
+        http://cyberchef.dev.${USER_HOSTNAME:?error} {
+            reverse_proxy cyberchef:80 {
+            }
+        }
+
+  cloudbeaver:
+    image: dbeaver/cloudbeaver:25.1.0
+    restart: unless-stopped
+    networks:
+      - my-network-public
+    expose:
+      - 8978
+    volumes:
+      - /mnt-links/docker/cloudbeaver/opt/cloudbeaver/workspace:/opt/cloudbeaver/workspace
+    labels:
+      virtual.title: cloudbeaver
+      virtual.url: http://cloudbeaver.dev.${USER_HOSTNAME:?error}
+      virtual.caddyfile: |
+        https://cloudbeaver.dev.${USER_HOSTNAME:?error} {
+            redir http://cloudbeaver.dev.${USER_HOSTNAME:?error}
+        }
+        http://cloudbeaver.dev.${USER_HOSTNAME:?error} {
+            reverse_proxy cloudbeaver:8978 {
+            }
+        }
+
+  pgadmin:
+    image: dpage/pgadmin4:9.4.0
+    restart: always
+    user: root
+    networks:
+      - my-network-public
+    expose:
+      - 80
+    environment:
+      PGADMIN_DEFAULT_EMAIL: zamis82@outlook.com
+      PGADMIN_DEFAULT_PASSWORD: r74Qsg7jdwUfryM
+    volumes:
+      - /mnt-links/docker/pgadmin/var/lib/pgadmin:/var/lib/pgadmin
+    labels:
+      virtual.title: pgadmin
+      virtual.url: http://pgadmin.dev.${USER_HOSTNAME:?error}
+      virtual.caddyfile: |
+        https://pgadmin.dev.${USER_HOSTNAME:?error} {
+            redir http://pgadmin.dev.${USER_HOSTNAME:?error}
+        }
+        http://pgadmin.dev.${USER_HOSTNAME:?error} {
+            reverse_proxy pgadmin:80 {
+            }
+        }
