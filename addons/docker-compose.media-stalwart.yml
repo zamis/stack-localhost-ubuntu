@@ -1,0 +1,31 @@
+name: stack-stalwart
+
+networks:
+  my-network-public:
+    name: my-network-public
+    external: true
+
+services:
+  stalwart:
+    image: stalwartlabs/stalwart:v0.12.5-alpine
+    restart: no
+    hostname: stalwart.media.${USER_HOSTNAME:?error}
+    networks:
+      - my-network-public
+    environment:
+      - ENV_TMP=false
+    volumes:
+      - /mnt-links/docker/stalwart/opt/stalwart:/opt/stalwart
+    expose:
+      - 8080
+    labels:
+      virtual.title: Stalwart
+      virtual.url: http://stalwart.media.${USER_HOSTNAME:?error}
+      virtual.caddyfile: |
+        https://stalwart.media.${USER_HOSTNAME:?error} {
+            redir http://stalwart.media.${USER_HOSTNAME:?error}
+        }
+        http://stalwart.media.${USER_HOSTNAME:?error} {
+            reverse_proxy stalwart:8080 {
+            }
+        }
