@@ -1,0 +1,33 @@
+name: stack-cms-nocodb
+
+networks:
+  my-network-proxy:
+    name: my-network-proxy
+    external: true
+
+services:  
+  nocodb:
+    image: nocodb/nocodb:0.264.6
+    restart: unless-stopped
+    networks:
+      - my-network-proxy
+    expose:
+      - 8080
+    volumes:
+      - /var/mnt-links/docker/nocodb/usr/app/data:/usr/app/data
+    labels:
+      virtual.title: nocodb
+      virtual.url: http://nocodb.cms.${USER_HOSTNAME:?error}
+      virtual.caddyfile: |
+        https://nocodb.cms.${USER_HOSTNAME:?error} {
+            redir http://nocodb.cms.${USER_HOSTNAME:?error}
+        }
+        http://nocodb.cms.${USER_HOSTNAME:?error} {
+            reverse_proxy nocodb:8080 {
+            }
+        }
+      virtual.homefile: |
+        <div>
+          <a class="shadow" href="http://nocodb.cms.${USER_HOSTNAME:?error}">nocodb</a>
+          <small>http://nocodb.cms.${USER_HOSTNAME:?error}</small>
+        </div>

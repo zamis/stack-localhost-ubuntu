@@ -1,0 +1,66 @@
+name: stack-media-nextcloud
+
+networks:
+  my-network-proxy:
+    name: my-network-proxy
+    external: true
+
+services:
+  nextcloud:
+    image: nextcloud:31.0.8
+    restart: always
+    hostname: nextcloud.media.${USER_HOSTNAME:?error}
+    networks:
+      - my-network-proxy
+    volumes:
+      - /var/mnt-links/docker/nextcloud/var/www/html:/var/www/html
+      - /var/mnt-links/media:/var/mnt-links/media:rw
+      - /var/mnt-links/docker/share:/var/mnt-links/docker/share:rw
+    expose:
+      - 80
+    labels:
+      virtual.caddyfile: |
+        https://nextcloud.media.${USER_HOSTNAME:?error} {
+            redir http://nextcloud.media.${USER_HOSTNAME:?error}
+        }
+        http://nextcloud.media.${USER_HOSTNAME:?error} {
+            reverse_proxy nextcloud:80 {
+            }
+        }
+      virtual.homefile: |
+        <div>
+          <a class="shadow" href="http://nextcloud.media.${USER_HOSTNAME:?error}">nextcloud</a>
+          <small>http://nextcloud.media.${USER_HOSTNAME:?error}</small>
+        </div>
+
+  collaboracode:
+    image: collabora/code:25.04.4.2.1
+    restart: always
+    cap_add:
+      - MKNOD
+    hostname: collaboracode.media.${USER_HOSTNAME:?error}
+    networks:
+      - my-network-proxy
+    expose:
+      - 9980
+    environment:
+      - server_name=collaboracode.media.${USER_HOSTNAME:?error}
+      - aliasgroup1=http://nextcloud.media.${USER_HOSTNAME:?error}
+      - domain=collaboracode.media.${USER_HOSTNAME:?error}
+      - username=admin
+      - password=admin
+      - extra_params=--o:ssl.enable=false --o:ssl.termination=false --o:logging.level=warning
+    labels:
+      virtual.caddyfile: |
+        https://collaboracode.media.${USER_HOSTNAME:?error} {
+            redir http://collaboracode.media.${USER_HOSTNAME:?error}
+        }
+        http://collaboracode.media.${USER_HOSTNAME:?error} {
+            reverse_proxy collaboracode:9980 {
+            }
+        }
+      virtual.homefile: |
+        <div>
+          <a class="shadow" href="http://collaboracode.media.${USER_HOSTNAME:?error}">collaboracode</a>
+          <small>http://collaboracode.media.${USER_HOSTNAME:?error}</small>
+        </div>

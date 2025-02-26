@@ -1,0 +1,32 @@
+name: stack-cms-appsmith
+
+networks:
+  my-network-proxy:
+    name: my-network-proxy
+    external: true
+
+services:  
+  appsmith:
+    image: appsmith/appsmith-ee:v1.85
+    restart: unless-stopped
+    networks:
+      - my-network-proxy
+    expose:
+      - 80
+      - 443
+    volumes:
+      - /var/mnt-links/docker/appsmith/appsmith-stacks:/appsmith-stacks
+    labels:
+      virtual.caddyfile: |
+        https://appsmith.cms.${USER_HOSTNAME:?error} {
+            redir http://appsmith.cms.${USER_HOSTNAME:?error}
+        }
+        http://appsmith.cms.${USER_HOSTNAME:?error} {
+            reverse_proxy appsmith:80 {
+            }
+        }
+      virtual.homefile: |
+        <div>
+          <a class="shadow" href="http://appsmith.cms.${USER_HOSTNAME:?error}">appsmith</a>
+          <small>http://appsmith.cms.${USER_HOSTNAME:?error}</small>
+        </div>
