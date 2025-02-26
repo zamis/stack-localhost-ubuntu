@@ -1,0 +1,119 @@
+name: stack-localhost-ubuntu-dev
+
+networks:
+  my-network-public:
+    name: my-network-public
+    external: true
+
+services:
+  ubuntu-dev:
+    build:
+      dockerfile_inline: |
+        FROM localhost/ubuntu
+        USER root
+        RUN cat <<EOF >/dockerstartup/custom_startup.sh
+        #!/usr/bin/env bash
+        set -ex
+        /usr/bin/desktop_ready && xterm /dockerstartup/utils/docker-port-forward.sh
+        EOF
+        RUN cat <<EOF >/dockerstartup/utils/install.sh
+        #!/usr/bin/env bash
+        set -ex
+        usermod -a -G video kasm-user
+        EOF
+        RUN chmod +x /dockerstartup/custom_startup.sh
+        RUN chmod +x /dockerstartup/utils/install.sh
+        USER 1000
+        RUN sudo bash /dockerstartup/utils/install.sh || exit 1;
+    restart: always
+    shm_size: 2gb
+    security_opt:
+      - apparmor=unconfined
+      - seccomp=unconfined
+    cap_add:
+      - ALL
+    networks:
+      - my-network-public
+    expose:
+      - 6901
+    environment:
+      KASM_USER: "kasm-user"
+      VNC_USER: kasm_user
+      VNC_PW: password
+      USER_DOCKER_HOST: dind-dev
+      # DOCKER_HOST: tcp://docker:2376
+      # DOCKER_HOST: unix://var/run/docker.sock
+      # DOCKER_SOCK: unix://var/run/docker.sock
+      DOCKER_TLS_VERIFY: 1
+      DOCKER_TLS_CERTDIR: /certs
+      DOCKER_CERT_PATH: /certs/client
+      ROOTLESSKIT_STATE_DIR: /home/kasm-user/.docker/tmp
+      XDG_RUNTIME_DIR: /home/kasm-user/.docker/run
+      UB_IIT_SETTINGS_PATH: /home/kasm-user/tmp
+      DOTNET_ROOT: /mnt/user-data/!apps/dotnet
+      KASM_SVC_WEBCAM: 0
+      KASM_SVC_PRINTER: 0
+      KASM_SVC_AUDIO: 0
+      KASM_SVC_AUDIO_INPUT: 0
+      KASM_SVC_UPLOADS: 0
+      KASM_SVC_GAMEPAD: 0
+      PATH_ADD: /mnt/user-data/!apps/ub:/mnt/user-data/!apps/dotnet:/home/kasm-user/.dotnet/tools
+    devices:
+      - /dev/fuse:/dev/fuse
+      # - /dev/snd:/dev/snd
+    volumes:
+      - /mnt-links/docker/dind-dev/certs:/certs:ro
+      - /mnt-links/docker/dind-dev/var/run:/var/dind-dev-run
+      - /mnt-links/docker/ubuntu/home/kasm-user:/home/kasm-user:rw
+      - /mnt-links/docker/ubuntu/mnt/user-data:/mnt/user-data:rw
+      - /mnt-links/docker/ubuntu/mnt/user-share:/mnt/user-share:rw
+    labels:
+      virtual.title: Ubuntu
+      virtual.url: http://ubuntu-dev.${USER_HOSTNAME:?error}
+      virtual.host: ubuntu-dev.${USER_HOSTNAME:?error}
+      virtual.upstream.port: 6901
+      virtual.upstream.protocol: https://
+      virtual.proxy.directives: |
+        transport http {
+          tls
+          tls_insecure_skip_verify
+        }
+
+  filebrowser:
+    build:
+      dockerfile_inline: |
+        FROM filebrowser/filebrowser:v2.32.0
+        ENV USER=kasm-user
+        ENV HOME=/srv
+        ENV CONFIG=/config
+        RUN mkdir -p $$HOME && chown -R 1000:0 $$HOME
+        RUN mkdir -p $$CONFIG && chown -R 1000:0 $$CONFIG
+        RUN cat <<EOF > /.filebrowser.json
+        {
+          "port": 80,
+          "baseURL": "",
+          "address": "",
+          "log": "stdout",
+          "database": "/config/database.db",
+          "root": "/srv"
+        }
+        EOF
+        USER 1000
+    command: --noauth --port=80 --root=/srv --database=/config/database.db
+    restart: unless-stopped
+    networks:
+      - my-network-public
+    expose:
+      - 80
+    environment:
+      PUID: "$(id -u)"
+      PGID: "$(id -g)"
+      HOME: "/srv"
+    volumes:
+      - /mnt-links/docker/ubuntu/mnt/user-share:/srv:rw
+    labels:
+      virtual.title: Ubuntu files
+      virtual.url: http://files.ubuntu-dev.${USER_HOSTNAME:?error}
+      virtual.host: files.ubuntu-dev.${USER_HOSTNAME:?error}
+      virtual.upstream.port: 80
+      virtual.upstream.protocol: http://

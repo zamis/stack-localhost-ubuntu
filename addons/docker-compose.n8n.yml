@@ -1,0 +1,29 @@
+name: stack-n8n
+
+networks:
+  my-network-public:
+    name: my-network-public
+    external: true
+
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:1.86.0
+    restart: no
+    networks:
+      - my-network-public
+    environment:
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=
+      - N8N_SECURE_COOKIE=false
+    volumes:
+      - /mnt-links/docker/n8n/home/node/.n8n:/home/node/.n8n
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    expose:
+      - 5678
+    labels:
+      virtual.title: N8n
+      virtual.url: http://n8n.${USER_HOSTNAME:?error}
+      virtual.host: n8n.${USER_HOSTNAME:?error}
+      virtual.upstream.port: 5678
+      virtual.upstream.protocol: http://
+    

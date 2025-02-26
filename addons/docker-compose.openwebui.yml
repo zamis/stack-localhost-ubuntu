@@ -1,0 +1,23 @@
+name: stack-openwebui
+
+networks:
+  my-network-public:
+    name: my-network-public
+    external: true
+
+services:
+  openwebui:
+    image: ghcr.io/open-webui/open-webui:main
+    networks:
+      - my-network-public
+    expose:
+      - 8080
+    volumes:
+      - /mnt-links/docker/open-webui/app/backend/data:/app/backend/data
+    labels:
+      virtual.title: Open Web UI
+      virtual.url: http://openwebui.${USER_HOSTNAME:?error}
+      virtual.host: openwebui.${USER_HOSTNAME:?error}
+      virtual.upstream.port: 8080
+      virtual.upstream.protocol: http://
+    
