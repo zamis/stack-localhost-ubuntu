@@ -1,0 +1,36 @@
+name: stack-syncthing
+
+networks:
+  my-network-public:
+    name: my-network-public
+    external: true
+
+services:
+  syncthing:
+    image: syncthing/syncthing:1.29.6
+    restart: always
+    networks:
+      - my-network-public
+    expose:
+      - 8384 # Web UI
+    ports:
+      - 22000:22000/tcp # TCP file transfers
+      - 22000:22000/udp # QUIC file transfers
+      - 21027:21027/udp # Receive local discovery broadcasts
+    environment:
+      - STHOMEDIR=/var/syncthing/config
+      - HOME=/var/syncthing/folders
+    volumes:
+      - /mnt-links/docker/syncthing/var/syncthing:/var/syncthing
+    healthcheck:
+      test: curl -fkLsS -m 2 127.0.0.1:8384/rest/noauth/health | grep -o --color=never OK || exit 1
+      interval: 1m
+      timeout: 10s
+      retries: 3
+    labels:
+      virtual.title: syncthing
+      virtual.url: http://sync.${USER_HOSTNAME:?error}
+      virtual.host: sync.${USER_HOSTNAME:?error}
+      virtual.upstream.port: 8384
+      virtual.upstream.protocol: http://
+   

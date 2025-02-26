@@ -1,0 +1,24 @@
+name: stack-dev-helpers
+
+networks:
+  my-network-public:
+    name: my-network-public
+    external: true
+
+volumes:
+  backup:
+
+services:
+  cyberchef:
+    image: ghcr.io/gchq/cyberchef:10.19.4
+    restart: unless-stopped
+    networks:
+      - my-network-public
+    expose:
+      - 80
+    labels:
+      virtual.title: cyberchef
+      virtual.url: http://cyberchef.dev.${USER_HOSTNAME:?error}
+      virtual.host: cyberchef.dev.${USER_HOSTNAME:?error}
+      virtual.upstream.port: 80
+      virtual.upstream.protocol: http://

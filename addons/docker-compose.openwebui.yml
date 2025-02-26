@@ -1,0 +1,35 @@
+name: stack-openwebui
+
+networks:
+  my-network-public:
+    name: my-network-public
+    external: true
+
+services:
+  ollama:
+    image: ollama/ollama:0.7.0
+    restart: always
+    networks:
+      - my-network-public
+    expose:
+      - 11434
+    volumes:
+      - /mnt-links/docker/ollama/root/.ollama:/root/.ollama
+
+  openwebui:
+    image: ghcr.io/open-webui/open-webui:0.6.10
+    restart: always    
+    networks:
+      - my-network-public
+    expose:
+      - 8080
+    volumes:
+      - /mnt-links/docker/open-webui/app/backend/data:/app/backend/data
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+    labels:
+      virtual.title: Open Web UI
+      virtual.url: http://openwebui.${USER_HOSTNAME:?error}
+      virtual.host: openwebui.${USER_HOSTNAME:?error}
+      virtual.upstream.port: 8080
+      virtual.upstream.protocol: http://
