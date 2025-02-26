@@ -1,0 +1,47 @@
+name: stack-core
+
+networks:
+  my-network-core:
+    name: my-network-core
+    external: false
+  my-network-public:
+    name: my-network-public
+    external: false
+
+services:
+  port:
+    image: portainer/portainer-ce:2.28.1-alpine
+    restart: always
+    networks:
+      - my-network-core
+      - my-network-public
+    expose:
+      - 9000
+      - 9443
+    ports:
+      - 9000:9000
+    environment:
+      - USER_HOSTNAME=${USER_HOSTNAME:?error}
+    volumes:
+      - /mnt-links/docker/portainer/data:/data
+      - /mnt-links/docker/dind-core/var/run:/var/dind-core-run/
+      - /var/run/docker.sock:/var/run/docker.sock
+    labels:
+      virtual.title: Portainer
+      caddy: port.${USER_HOSTNAME:?error}.localhost
+      caddy.reverse_proxy: "{{upstreams 9000}}"
+      caddy.tls: internal
+      virtual.host: http://port.${USER_HOSTNAME:?error}.localhost
+      virtual.redir: https://port.${USER_HOSTNAME:?error}.localhost
+      virtual.port: 9000
+
+  dind-core:
+    image: docker:28.0.2-dind
+    restart: always
+    privileged: true
+    environment:
+      - DOCKER_TLS_CERTDIR=/certs
+    volumes:
+      - /mnt-links/docker/dind-core/certs:/certs
+      - /mnt-links/docker/dind-core/var/lib/docker:/var/lib/docker
+      - /mnt-links/docker/dind-core/var/run:/var/run

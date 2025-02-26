@@ -1,0 +1,100 @@
+name: stack-home-files-media
+
+networks:
+  my-network-public:
+    name: my-network-public
+    external: true
+
+services:
+  filebrowser:
+    build:
+      dockerfile_inline: |
+        FROM filebrowser/filebrowser:v2.31.2
+        USER root
+        ENV HOME=/srv
+        ENV CONFIG=/config
+        RUN mkdir -p $$HOME && mkdir -p $$CONFIG
+        # RUN chown -R 1000:0 $$HOME && chown -R 1000:0 $$CONFIG
+        RUN cat <<EOF > /.filebrowser.json
+        {
+          "port": 80,
+          "baseURL": "",
+          "address": "",
+          "log": "stdout",
+          "database": "/config/database.db",
+          "root": "/srv"
+        }
+        EOF
+    command: --noauth --port=80 --root=/srv --database=/config/database.db
+    restart: unless-stopped
+    networks:
+      - my-network-public
+    expose:
+      - 80
+    environment:
+      HOME: "/srv"
+    volumes:
+      - /mnt-links/media:/srv:rw
+    labels:
+      virtual.title: Files
+      caddy: files-media.${USER_HOSTNAME:?error}.localhost
+      caddy.reverse_proxy: "{{upstreams 80}}"
+      virtual.host: http://files-media.${USER_HOSTNAME:?error}.localhost
+      virtual.redir: https://files-media.${USER_HOSTNAME:?error}.localhost
+      virtual.port: 80
+      virtual.protocol: http://
+
+  service-smb:
+    build:
+      dockerfile_inline: |
+        FROM alpine:3.21.3
+        RUN apk add --no-cache --update samba samba-common-tools samba-client samba-server
+        
+        RUN cat <<'EOF' >/etc/samba/smb.conf
+        [global]
+          server string = samba
+          idmap config * : range = 3000-7999
+          server min protocol = SMB2
+          map to guest = Bad User
+          log file = /var/log/samba/%m
+          log level = 10
+
+          # disable printing services
+          load printers = no
+          printing = bsd
+          printcap name = /dev/null
+          disable spoolss = yes
+
+        [guest]
+          path = /Shared/
+          read only = yes
+          guest ok = yes
+          browseable = yes
+        EOF
+        RUN cat <<'EOF' >/bin/app.sh
+        nmbd -D
+        smbd --foreground --no-process-group -i
+        EOF
+
+        # HEALTHCHECK --interval=60s --timeout=15s CMD smbclient --configfile=/etc/samba/smb.conf -L \\localhost -N -m SMB3
+        EXPOSE 137 138 139 445
+        entrypoint /bin/app.sh
+    entrypoint: "sh /bin/app.sh"
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    expose:
+      - 137
+      - 138
+      - 139
+      - 445
+    ports:
+      - 137:137/udp
+      - 138:138/udp
+      - 139:139
+      - 445:445
+    environment:
+      HOME: "/srv"
+    volumes:
+      - /mnt-links/media/video:/Shared/video:ro
+      - /mnt-links/media/music:/Shared/music:ro
