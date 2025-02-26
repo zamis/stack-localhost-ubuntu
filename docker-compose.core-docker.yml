@@ -1,0 +1,39 @@
+name: stack-core-docker
+
+networks:
+  my-network-public:
+    name: my-network-public
+    external: true
+
+services:
+  dind-core:
+    image: docker:28.1.1-dind
+    restart: always
+    privileged: true
+    hostname: dind-core
+    networks:
+      - my-network-public
+    environment:
+      - DOCKER_TLS_CERTDIR=/certs
+    volumes:
+      - /mnt-links/docker/dind-core/certs:/certs
+      - /mnt-links/docker/dind-core/var/lib/docker:/var/lib/docker
+      - /mnt-links/docker/dind-core/var/run:/var/run
+      - /mnt-links-core/docker:/mnt-links/docker
+      - /mnt-links-core/media:/mnt-links/media
+
+  dind-dev:
+    image: docker:28.1.1-dind
+    restart: always
+    privileged: true
+    hostname: dind-dev
+    networks:
+      - my-network-public
+    environment:
+      - DOCKER_TLS_CERTDIR=/certs
+    volumes:
+      - /mnt-links/docker/dind-dev/certs:/certs
+      - /mnt-links/docker/dind-dev/var/lib/docker:/var/lib/docker
+      - /mnt-links/docker/dind-dev/var/run:/var/run
+      - /mnt-links-core/docker:/mnt-links/docker
+      - /mnt-links-core/media:/mnt-links/media

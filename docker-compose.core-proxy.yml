@@ -1,0 +1,90 @@
+name: stack-core-proxy
+
+networks:
+  my-network-public:
+    name: my-network-public
+    external: true
+  my-network-core:
+    name: my-network-core
+    external: true
+
+volumes:
+  site-home:
+  site-tmpl:
+
+services:
+  docker-gen-proxy:
+    build:
+      context: ./proxy
+      dockerfile_inline: |
+        FROM nginxproxy/docker-gen
+        COPY ./Caddyfile.tmpl /app/Caddyfile.tmpl
+    restart: always
+    network_mode: none
+    environment:
+      - CURRENT_NETWORK=my-network-public
+    command: "-watch /app/Caddyfile.tmpl /etc/caddy/Caddyfile"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - site-tmpl:/etc/caddy
+
+  caddy-proxy:
+    image: caddy:alpine
+    restart: always
+    networks:
+      - my-network-core
+      - my-network-public
+    ports:
+      - 80:80
+      - 443:443
+    environment:
+      - CADDY_INGRESS_NETWORKS=my-network-public
+    command: "caddy run --config /etc/caddy/Caddyfile --watch --adapter caddyfile"
+    volumes:
+      - /mnt-links/docker/caddy/data:/data
+      - site-tmpl:/etc/caddy
+
+  docker-gen-site:
+    build:
+      context: ./proxy
+      dockerfile_inline: |
+        FROM nginxproxy/docker-gen
+        COPY ./index.tmpl.html /app/index.tmpl.html
+    restart: always
+    network_mode: none
+    command: "-watch /app/index.tmpl.html /usr/share/nginx/html/index.html"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - site-home:/usr/share/nginx/html
+
+  site-home:
+    build:
+      dockerfile_inline: |
+        FROM nginx:1.27.3
+    restart: always
+    networks:
+      - my-network-public
+    expose:
+      - 80
+    volumes:
+      - site-home:/usr/share/nginx/html
+    labels:
+      virtual.title: Home
+      virtual.url: http://${USER_HOSTNAME:?error}
+      virtual.host: ${USER_HOSTNAME:?error}
+      virtual.upstream.port: 80
+
+  whoami:
+    image: traefik/whoami
+    networks:
+      - my-network-public
+    expose:
+      - 80
+    labels:
+      virtual.title: whoami
+      virtual.url: http://whoami.${USER_HOSTNAME:?error}
+      virtual.host: whoami.${USER_HOSTNAME:?error}
+      virtual.upstream.port: 80
+      virtual.upstream.protocol: http://
+      virtual.proxy.directives: |
+        # upstream {{ $upstream }} ---
